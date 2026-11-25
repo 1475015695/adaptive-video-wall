@@ -1502,5 +1502,16 @@
 
   bindEvents();
   initExtensionBridge();
+
+  const urlParams = new URLSearchParams(location.search);
+  const demoParam = urlParams.get('demo');
+  if (demoParam === '6') els.demoPreset6.click();
+  else if (demoParam === 'mix') els.demoPresetMix.click();
+  else if (demoParam === '9') els.demoPreset9.click();
+  if (urlParams.get('debug') === '1') {
+    state.showDebug = true;
+    els.toggleDebug.checked = true;
+  }
+
   applyLayout();
 })();
