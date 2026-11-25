@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>自适应无损比例视频墙</title>
+  <link rel="stylesheet" href="./popup.css" />
+  <script defer src="./popup.js"></script>
+</head>
+
+<body>
+  <header class="popup-header">
+    <div class="brand">
+      <img src="../icons/icon48.png" alt="" class="brand-icon" />
+      <div>
+        <h1>自适应视频墙</h1>
+        <p>保比例 · 零裁剪 · 满屏排布</p>
+      </div>
+    </div>
+    <span id="popup-sync-badge" class="sync-badge">扩展就绪</span>
+  </header>
+
+  <section class="actions-bar">
+    <button id="btn-pick-video" class="btn btn-primary" type="button">点选页面视频</button>
+    <button id="btn-open-wall" class="btn btn-secondary" type="button">打开视频墙</button>
+    <button id="btn-open-popout" class="btn btn-secondary" type="button" title="在独立大窗口中打开">独立窗口</button>
+  </section>
+
+  <section class="videos-section">
+    <div class="section-head">
+      <span>当前页面检测到的视频</span>
+      <button id="btn-rescan" class="link-btn" type="button">重新扫描</button>
+    </div>
+    <div id="video-list" class="video-list">
+      <div class="list-empty">正在扫描当前页面视频…</div>
+    </div>
+  </section>
+
+  <footer class="settings-footer">
+    <p class="popup-tip">提示：在任意网页视频上<strong>点击鼠标右键</strong>，即可选择「添加到自适应视频墙」或「保存该视频到本地」。</p>
+    <label class="opt-row">
+      <input id="opt-focus-wall" type="checkbox" />
+      <span>每次同步后自动切换到视频墙页面</span>
+    </label>
+    <label class="opt-row">
+      <input id="opt-mute-source" type="checkbox" checked />
+      <span>同步时自动静音原标签页（避免重音）</span>
+    </label>
+  </footer>
+</body>
+
+</html>

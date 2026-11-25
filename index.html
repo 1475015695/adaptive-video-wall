@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>自适应无损比例多路视频播放器</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script defer src="./src/layoutEngine.js"></script>
+  <script defer src="./src/demoStream.js"></script>
+  <script defer src="./extension/wallBridge.js"></script>
+  <script defer src="./src/app.js"></script>
+</head>
+
+<body>
+  <!-- 全屏视频舞台 -->
+  <main id="stage" class="stage" aria-label="多路视频播放舞台"></main>
+
+  <!-- 空状态引导页 -->
+  <section id="empty-state" class="empty-state" aria-label="欢迎使用">
+    <div class="empty-card">
+      <div class="empty-badge">ZERO DISTORTION · MAX SCREEN FILL</div>
+      <h1 class="empty-title">自适应无损比例视频墙</h1>
+      <p class="empty-desc">
+        无论同时打开多少个横屏、竖屏或方屏视频，算法都会在<strong>严格保持每个视频原始宽高比（不裁剪、不变形、不重叠）</strong>的前提下，动态求解最优二维空间排布，尽可能占满整个屏幕。
+      </p>
+
+      <div class="empty-primary-actions">
+        <button id="empty-pick-files" class="btn btn-primary" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 16V4m0 0-4 4m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+          </svg>
+          选择本地视频文件
+        </button>
+        <button id="empty-open-url" class="btn btn-secondary" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+          粘贴视频链接
+        </button>
+      </div>
+
+      <p class="empty-drop-hint">或直接将多个本地视频文件拖拽到窗口任意位置</p>
+      <p id="empty-ext-hint" class="empty-ext-hint" hidden>
+        扩展已激活：在任意网页视频上<strong>点击鼠标右键</strong>选择「添加到自适应视频墙」，或点击工具栏插件图标「点选页面视频」（快捷键 <code>Alt+Shift+V</code>）。
+      </p>
+
+      <div class="empty-demos">
+        <span class="empty-demos-label">即刻体验实时多比例流：</span>
+        <div class="empty-demo-buttons">
+          <button id="demo-preset-6" class="btn btn-ghost" type="button">6× 16:9 满屏演示 (100%)</button>
+          <button id="demo-preset-mix" class="btn btn-ghost" type="button">横竖屏混排 (3横 + 2竖)</button>
+          <button id="demo-preset-9" class="btn btn-ghost" type="button">随机 9 路混排</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 底部自动隐藏控制坞 -->
+  <header id="hud" class="hud is-visible" aria-label="全局控制栏">
+    <div class="hud-group hud-stats" title="当前画面总面积占可用屏幕的百分比">
+      <div class="coverage-pill">
+        <span id="hud-coverage-fill" class="coverage-fill"></span>
+        <span id="hud-coverage-text" class="coverage-text">利用率 0.0%</span>
+      </div>
+      <span id="hud-count-badge" class="count-badge">0 路</span>
+    </div>
+
+    <div class="hud-divider"></div>
+
+    <div class="hud-group hud-sources">
+      <button id="btn-add-files" class="hud-btn" type="button" title="添加本地视频文件 (支持多选)">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        <span>本地视频</span>
+      </button>
+      <button id="btn-add-url" class="hud-btn" type="button" title="从视频 URL 添加">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </svg>
+        <span>链接</span>
+      </button>
+      <div class="demo-add-combo">
+        <select id="demo-ratio-select" class="hud-select" aria-label="演示视频比例">
+          <option value="random">随机比例</option>
+          <option value="16:9">16:9 横屏</option>
+          <option value="9:16">9:16 竖屏</option>
+          <option value="4:3">4:3 传统</option>
+          <option value="1:1">1:1 方屏</option>
+          <option value="21:9">21:9 超宽</option>
+          <option value="3:4">3:4 竖版</option>
+          <option value="2:3">2:3 海报</option>
+        </select>
+        <button id="btn-add-demo" class="hud-btn hud-btn-accent" type="button" title="快速添加一路实时演示视频 (+)">
+          <span>+ 演示</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="hud-divider"></div>
+
+    <div class="hud-group mode-segmented" role="group" aria-label="布局模式">
+      <button class="mode-btn is-active" data-mode="max-fill" type="button" title="尽可能占满屏幕 (快捷键 1)">极致填充</button>
+      <button class="mode-btn" data-mode="balanced" type="button" title="各视频尺寸尽量均衡 (快捷键 2)">等比均衡</button>
+      <button class="mode-btn" data-mode="focus" type="button" title="突出焦点主画面 (快捷键 3)">焦点</button>
+    </div>
+
+    <div class="hud-divider"></div>
+
+    <div class="hud-group hud-playback">
+      <button id="btn-play-all" class="hud-icon-btn" type="button" title="全部播放 / 暂停 (Space)" aria-label="全部播放或暂停">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <polygon points="6,4 20,12 6,20" />
+        </svg>
+      </button>
+      <button id="btn-mute-all" class="hud-icon-btn" type="button" title="全部静音 / 取消静音 (M)" aria-label="全部静音或取消静音">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M11 5L6 9H2v6h4l5 4V5z" />
+          <line x1="23" y1="9" x2="17" y2="15" />
+          <line x1="17" y1="9" x2="23" y2="15" />
+        </svg>
+      </button>
+      <button id="btn-fullscreen" class="hud-icon-btn" type="button" title="进入 / 退出全屏 (F)" aria-label="切换全屏">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+        </svg>
+      </button>
+      <button id="btn-popout-window" class="hud-icon-btn" type="button" title="弹出为独立窗口" aria-label="弹出为独立窗口" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          <polyline points="15 3 21 3 21 9" />
+          <line x1="10" y1="14" x2="21" y2="3" />
+        </svg>
+      </button>
+      <button id="btn-settings" class="hud-icon-btn" type="button" title="布局参数设置" aria-label="布局参数设置">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.84 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </button>
+      <button id="btn-pin-hud" class="hud-icon-btn" type="button" title="固定 / 自动隐藏控制栏" aria-label="固定控制栏">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 17v5" />
+          <path
+            d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+        </svg>
+      </button>
+      <button id="btn-clear-all" class="hud-icon-btn hud-icon-danger" type="button" title="清空全部视频" aria-label="清空全部视频">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+        </svg>
+      </button>
+      <button id="btn-help" class="hud-icon-btn" type="button" title="快捷键与说明 (?)" aria-label="快捷键与说明">
+        <span>?</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 高级布局设置弹出框 -->
+  <aside id="settings-popover" class="settings-popover" hidden aria-label="布局设置">
+    <div class="popover-header">
+      <span>排版引擎设置</span>
+      <span id="stat-compute-ms" class="popover-badge">0.0 ms</span>
+    </div>
+
+    <label class="setting-row">
+      <div class="setting-label">
+        <span>画面间距 (Gap)</span>
+        <strong id="val-gap">4 px</strong>
+      </div>
+      <input id="range-gap" type="range" min="0" max="16" step="1" value="4" />
+    </label>
+
+    <label class="setting-row">
+      <div class="setting-label">
+        <span>尺寸均衡度 (防止局部过小)</span>
+        <strong id="val-balance">25%</strong>
+      </div>
+      <input id="range-balance" type="range" min="0" max="100" step="5" value="25" />
+    </label>
+
+    <label class="setting-check">
+      <input id="toggle-reorder" type="checkbox" checked />
+      <span>允许自动重排位置以提升屏幕利用率</span>
+    </label>
+
+    <label class="setting-check">
+      <input id="toggle-debug" type="checkbox" />
+      <span>显示各画面比例、分辨率与面积占比</span>
+    </label>
+
+    <div class="popover-telemetry">
+      <div>策略：<code id="stat-strategy">-</code></div>
+      <div>最小/最大线尺度比：<code id="stat-min-ratio">1.00</code></div>
+    </div>
+  </aside>
+
+  <!-- 隐藏本地文件选择器 -->
+  <input id="file-input" type="file" multiple accept="video/*" hidden />
+
+  <!-- 全局文件拖放遮罩 -->
+  <div id="drop-overlay" class="drop-overlay" hidden>
+    <div class="drop-box">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 16V4m0 0-4 4m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+      </svg>
+      <h2>松开鼠标立即添加视频</h2>
+      <p>支持 MP4 / WebM / MOV / MKV 等浏览器可解码格式，可一次性拖入多个文件</p>
+    </div>
+  </div>
+
+  <!-- 视频链接弹窗 -->
+  <div id="url-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="url-modal-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="url-modal-title">从视频链接添加</h2>
+        <button id="btn-url-close" class="modal-close" type="button" aria-label="关闭">&times;</button>
+      </div>
+      <p class="modal-subtitle">每行输入一个直链地址（如 <code>.mp4</code>、<code>.webm</code>），支持批量粘贴：</p>
+      <textarea id="url-textarea" class="modal-textarea" rows="5"
+        placeholder="https://example.com/video1.mp4&#10;https://example.com/video2.mp4"></textarea>
+      <div class="modal-footer">
+        <button id="btn-url-cancel" class="btn btn-secondary" type="button">取消</button>
+        <button id="btn-url-confirm" class="btn btn-primary" type="button">添加到播放墙</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快捷键与说明弹窗 -->
+  <div id="help-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
+    <div class="modal-card modal-card-wide">
+      <div class="modal-header">
+        <h2 id="help-modal-title">快捷键与交互说明</h2>
+        <button id="btn-help-close" class="modal-close" type="button" aria-label="关闭">&times;</button>
+      </div>
+      <div class="shortcuts-grid">
+        <div class="shortcut-item"><kbd>Space</kbd><span>全部播放 / 暂停</span></div>
+        <div class="shortcut-item"><kbd>M</kbd><span>全部静音 / 取消静音</span></div>
+        <div class="shortcut-item"><kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd><span>切换 极致填充 / 等比均衡 / 焦点 模式</span></div>
+        <div class="shortcut-item"><kbd>G</kbd><span>循环切换画面间距 (0 / 4 / 10 px)</span></div>
+        <div class="shortcut-item"><kbd>I</kbd><span>显示 / 隐藏 比例与尺寸浮标</span></div>
+        <div class="shortcut-item"><kbd>F</kbd><span>进入 / 退出全屏</span></div>
+        <div class="shortcut-item"><kbd>+</kbd><span>快速增加一路演示视频</span></div>
+        <div class="shortcut-item"><kbd>Backspace</kbd><span>移除最后添加的视频</span></div>
+        <div class="shortcut-item"><kbd>Esc</kbd><span>退出独享放大或关闭弹窗</span></div>
+        <div class="shortcut-item"><kbd>拖拽画面</kbd><span>任意互换两个视频所在位置</span></div>
+      </div>
+      <p class="modal-note">
+        提示：双击任意视频可「独享全屏」；在单路视频的静音按钮上按住 <kbd>Alt</kbd> 点击（或点击“独听”按钮）可只保留该路声音。
+      </p>
+    </div>
+  </div>
+</body>
+
+</html>
